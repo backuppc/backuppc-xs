@@ -1,0 +1,6 @@
+TYPEMAP
+BackupPC::XS::FileZIO           T_PTROBJ
+BackupPC::XS::PoolRefCnt        T_PTROBJ
+BackupPC::XS::PoolWrite         T_PTROBJ
+BackupPC::XS::Attrib            T_PTROBJ
+BackupPC::XS::AttribCache       T_PTROBJ
