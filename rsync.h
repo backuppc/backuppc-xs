@@ -21,7 +21,6 @@
  */
 
 #include "config.h"
-#include "byteorder.h"
 
 #ifndef __GNUC__
 #define __attribute__(x)
@@ -369,4 +368,5 @@ typedef ssize_t int64;
 
 #endif
 
+#include "byteorder.h"
 #include "md5/mdigest.h"
