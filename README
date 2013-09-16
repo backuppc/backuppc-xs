@@ -1,4 +1,4 @@
-BackupPC-XS version 0.01
+BackupPC-XS version 0.20
 ========================
 
 BackupPC::XS implements various BackupPC functions in a perl-callable

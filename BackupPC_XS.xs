@@ -910,6 +910,27 @@ refCountAll(path, compress)
         RETVAL
 
 int
+lockRangeFd(fd, offset, len, block)
+        int fd;
+        unsigned int offset;
+        unsigned int len;
+        int block;
+    CODE:
+        RETVAL = bpc_lockRangeFd(fd, offset, len, block);
+    OUTPUT:
+        RETVAL
+
+int
+unlockRangeFd(fd, offset, len)
+        int fd;
+        unsigned int offset;
+        unsigned int len;
+    CODE:
+        RETVAL = bpc_unlockRangeFd(fd, offset, len);
+    OUTPUT:
+        RETVAL
+
+int
 lockRangeFile(lockFile, offset, len, block)
         char *lockFile;
         unsigned int offset;
