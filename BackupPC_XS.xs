@@ -41,7 +41,7 @@ static HV* convert_file2hv(bpc_attrib_file *file, char *fileName)
     HV *rh;
     size_t listLen, i;
 
-    rh = (HV *)sv_2mortal((SV *)newHV());
+    rh = newHV();
     (void)hv_store(rh, "uid", 3,      newSVuv(file->uid), 0);
     (void)hv_store(rh, "gid", 3,      newSVuv(file->gid), 0);
     (void)hv_store(rh, "name", 4,     newSVpvn(fileName, strlen(fileName)), 0);
@@ -54,12 +54,11 @@ static HV* convert_file2hv(bpc_attrib_file *file, char *fileName)
     (void)hv_store(rh, "digest", 6,   newSVpvn((char*)file->digest.digest, file->digest.len), 0);
     (void)hv_store(rh, "compress", 8, newSVuv(file->compress), 0);
 
-
     if ( (listLen = bpc_attrib_xattrList(file, NULL, 0, 0)) > 0 ) {
         char *keys = malloc(listLen), *p;
 
         if ( keys && bpc_attrib_xattrList(file, keys, listLen, 0) > 0 ) {
-            HV *rhAttr = (HV*)sv_2mortal((SV*)newHV());
+            HV *rhAttr = newHV();
             for ( i = 0, p = keys ; i < listLen ; ) {
                 int len = strlen(p);
                 /*
@@ -70,9 +69,9 @@ static HV* convert_file2hv(bpc_attrib_file *file, char *fileName)
                 p += len + 1;
                 i += len + 1;
                 if ( !xattr ) continue;
-                (void)hv_store(rhAttr, xattr->key.key, xattr->key.keyLen -1, newSVpvn(xattr->value, xattr->valueLen), 0);
+                (void)hv_store(rhAttr, xattr->key.key, xattr->key.keyLen - 1, newSVpvn(xattr->value, xattr->valueLen), 0);
             }
-            (void)hv_store(rh, "xattr", 5, newRV((SV*)rhAttr), 0);
+            (void)hv_store(rh, "xattr", 5, newRV_noinc((SV*)rhAttr), 0);
         }
         if ( keys ) free(keys);
     }
@@ -576,7 +575,7 @@ get(dir, fileName = NULL)
         if ( fileName ) {
             bpc_attrib_file *file = bpc_attrib_fileGet(dir, fileName, 0);
             if ( !file ) XSRETURN_UNDEF;
-            RETVAL = newRV((SV*)convert_file2hv(file, file->name));
+            RETVAL = newRV_noinc((SV*)convert_file2hv(file, file->name));
         } else {
             ssize_t entrySize, i;
 
@@ -585,7 +584,7 @@ get(dir, fileName = NULL)
                 char *entries = malloc(entrySize), *p;
 
                 if ( entries && bpc_attrib_getEntries(dir, entries, entrySize) > 0 ) {
-                    HV *rh = (HV*)sv_2mortal((SV*)newHV());
+                    HV *rh = newHV();
                     for ( i = 0, p = entries ; i < entrySize ; ) {
                         int len = strlen(p);
                         bpc_attrib_file *file;
@@ -594,9 +593,9 @@ get(dir, fileName = NULL)
                         p += len + 1;
                         i += len + 1;
                         if ( !file ) continue;
-                        (void)hv_store(rh, file->name, strlen(file->name), newRV((SV*)convert_file2hv(file, file->name)), 0);
+                        (void)hv_store(rh, file->name, strlen(file->name), newRV_noinc((SV*)convert_file2hv(file, file->name)), 0);
                     }
-                    RETVAL = newRV((SV*)rh);
+                    RETVAL = newRV_noinc((SV*)rh);
                 }
                 if ( entries ) free(entries);
             }
@@ -667,7 +666,7 @@ read(dir, dirPath, attribFileName = "attrib")
         char *attribFileName;
     CODE:
         if ( !*dirPath ) dirPath = NULL;
-        RETVAL = !bpc_attrib_dirRead(dir, dirPath, attribFileName);
+        RETVAL = !bpc_attrib_dirRead(dir, dirPath, attribFileName, 0);
     OUTPUT:
         RETVAL
 
@@ -743,7 +742,7 @@ get(ac, fileName, allocateIfMissing = 0, dontReadInode = 0)
 
         if ( !file ) XSRETURN_UNDEF;
 
-        RETVAL = newRV((SV*)convert_file2hv(file, file->name));
+        RETVAL = newRV_noinc((SV*)convert_file2hv(file, file->name));
     }
     OUTPUT:
         RETVAL
@@ -784,7 +783,7 @@ getInode(ac, inode, allocateIfMissing = 0)
 
         if ( !file ) XSRETURN_UNDEF;
 
-        RETVAL = newRV((SV*)convert_file2hv(file, file->name));
+        RETVAL = newRV_noinc((SV*)convert_file2hv(file, file->name));
     }
     OUTPUT:
         RETVAL
@@ -830,28 +829,30 @@ getAll(ac, path, dontReadInode = 0)
     CODE:
     {
         ssize_t entrySize, i;
+        char pathCopy[BPC_MAXPATHLEN];
 
+        snprintf(pathCopy, sizeof(pathCopy), "%s", path);
         RETVAL = NULL;
-        if ( (entrySize = bpc_attribCache_getDirEntries(ac, path, NULL, 0)) > 0 ) {
+        if ( (entrySize = bpc_attribCache_getDirEntries(ac, pathCopy, NULL, 0)) > 0 ) {
             char *entries = malloc(entrySize), *p;
 
-            if ( entries && bpc_attribCache_getDirEntries(ac, path, entries, entrySize) > 0 ) {
-                HV *rh = (HV*)sv_2mortal((SV*)newHV());
+            if ( entries && bpc_attribCache_getDirEntries(ac, pathCopy, entries, entrySize) > 0 ) {
+                HV *rh = newHV();
                 for ( i = 0, p = entries ; i < entrySize ; ) {
                     int len = strlen(p);
                     char *fileNameSave = p;
-                    char filePath[MAXPATHLEN];
+                    char filePath[BPC_MAXPATHLEN];
                     bpc_attrib_file *file;
 
-                    snprintf(filePath, MAXPATHLEN, "%s/%s", path, p);
+                    snprintf(filePath, sizeof(filePath), "%s/%s", path, p);
                     file = bpc_attribCache_getFile(ac, filePath, 0, dontReadInode);
                     p += len + 1 + sizeof(ino_t);
                     i += len + 1 + sizeof(ino_t);
                     if ( !file ) continue;
-                    /* printf("Storing file name %s\n", fileNameSave); */
-                    (void)hv_store(rh, fileNameSave, strlen(fileNameSave), newRV((SV*)convert_file2hv(file, fileNameSave)), 0);
+                    /* printf("Storing file name %s for path %s\n", fileNameSave, path); */
+                    (void)hv_store(rh, fileNameSave, strlen(fileNameSave), newRV_noinc((SV*)convert_file2hv(file, fileNameSave)), 0);
                 }
-                RETVAL = newRV((SV*)rh);
+                RETVAL = newRV_noinc((SV*)rh);
             }
             if ( entries ) free(entries);
         }
@@ -875,7 +876,7 @@ getFullMangledPath(ac, dirName)
     CODE:
     {
         char path[MAXPATHLEN];
-        bpc_attribCache_getFullMangledPath(ac, path, dirName);
+        bpc_attribCache_getFullMangledPath(ac, path, dirName, -1);
         RETVAL = newSVpvn(path, strlen(path));
     }
     OUTPUT:
@@ -970,7 +971,7 @@ logMsgGet()
         bpc_logMsgGet(&mesg, &mesgLen);
         if ( mesgLen == 0 ) XSRETURN_UNDEF;
 
-        ra = (AV*)sv_2mortal((SV*)newAV());
+        ra = newAV();
         for ( i = 0, p = mesg ; i < mesgLen ; ) {
             int len = strlen(p);
 
@@ -978,7 +979,7 @@ logMsgGet()
             p += len + 1;
             i += len + 1;
         }
-        RETVAL = newRV((SV*)ra);
+        RETVAL = newRV_noinc((SV*)ra);
     }
     OUTPUT:
         RETVAL

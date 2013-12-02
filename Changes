@@ -1,8 +1,18 @@
 Revision history for Perl extension BackupPC-XS.
 
+0.30: December 1, 2013
+
+    - Updated Makefile.PL to make it more robust on different platforms. Reported
+      by Alexander Moisseev.
+
+    - Fixed bug triggered during certain smb transfers and tar/zip restore.  Reported
+      by Steve Palm and Denis Jedig.
+
+    - Some clean up of perl RV/SV reference counting.
+
 0.20: September 2, 2013
 
-    - BackupPC-XS-0.20/BackupPC_XS.xs: added lockRangeFd() and +unlockRangeFd()
+    - BackupPC-XS-0.20/BackupPC_XS.xs: added lockRangeFd() and unlockRangeFd()
 
     - BackupPC-XS-0.20/backuppc.h: changed BPC_POOL_WRITE_CONCURRENT_MATCH from 4 to 16
 
