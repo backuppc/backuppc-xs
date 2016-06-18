@@ -1,8 +1,8 @@
 use ExtUtils::MakeMaker;
-$Verbose = 1;
+
 WriteMakefile(
     NAME   => 'BackupPC::XS::md5',
-    SKIP   => [qw(all static_lib static dynamic_lib dynamic)],
+    SKIP   => [qw(all static_lib static dynamic dynamic_lib)],
     clean  => {'FILES' => 'libmd5$(LIB_EXT)'},
 );
 

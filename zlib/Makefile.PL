@@ -1,5 +1,5 @@
 use ExtUtils::MakeMaker;
-$Verbose = 1;
+
 WriteMakefile(
     NAME   => 'BackupPC::XS::zlib',
     SKIP   => [qw(all static_lib static dynamic_lib dynamic)],
