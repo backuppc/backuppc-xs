@@ -55,7 +55,7 @@ my @FILE_TYPES = qw(
     'all'    => [ @EXPORT_OK ],
 );
 
-our $VERSION = '0.40';
+our $VERSION = '0.50';
 
 require XSLoader;
 XSLoader::load('BackupPC::XS', $VERSION);

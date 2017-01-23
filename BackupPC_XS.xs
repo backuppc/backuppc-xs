@@ -28,6 +28,7 @@
 
 typedef bpc_fileZIO_fd          *BackupPC__XS__FileZIO;
 typedef bpc_refCount_info       *BackupPC__XS__PoolRefCnt;
+typedef bpc_deltaCount_info     *BackupPC__XS__DeltaRefCnt;
 typedef bpc_poolWrite_info      *BackupPC__XS__PoolWrite;
 typedef bpc_attrib_dir          *BackupPC__XS__Attrib;
 typedef bpc_attribCache_info    *BackupPC__XS__AttribCache;
@@ -419,12 +420,12 @@ void
 DeltaFileInit(hostDir)
         char *hostDir;
     CODE:
-        bpc_poolRefDeltaFileInit(hostDir);
+        bpc_poolRefDeltaFileInitOld(hostDir);
 
 unsigned int
 DeltaFileFlush()
     CODE:
-        RETVAL = bpc_poolRefDeltaFileFlush();
+        RETVAL = bpc_poolRefDeltaFileFlushOld();
     OUTPUT:
         RETVAL
 
@@ -444,7 +445,7 @@ DeltaUpdate(compress, d, count)
             if ( 0 < len && len < sizeof(digest.digest) ) {
                 memcpy(digest.digest, str, len);
                 digest.len = len;
-                bpc_poolRefDeltaUpdate(compress, &digest, count);
+                bpc_poolRefDeltaUpdateOld(compress, &digest, count);
             }
         }
     }
@@ -452,7 +453,65 @@ DeltaUpdate(compress, d, count)
 void
 DeltaPrint()
     CODE:
-        bpc_poolRefDeltaPrint();
+        bpc_poolRefDeltaPrintOld();
+
+MODULE = BackupPC::XS		PACKAGE = BackupPC::XS::DeltaRefCnt
+
+BackupPC::XS::DeltaRefCnt
+new(targetDir)
+        char *targetDir;
+    CODE:
+    {
+        RETVAL = calloc(1, sizeof(bpc_deltaCount_info));
+        bpc_poolRefDeltaFileInit((bpc_deltaCount_info*)RETVAL, targetDir);
+    }
+    OUTPUT:
+        RETVAL
+
+void
+DESTROY(info)
+        BackupPC::XS::DeltaRefCnt info;
+    CODE:
+    {
+        bpc_poolRefDeltaFileDestroy(info);
+        free(info);
+    }
+
+unsigned int
+flush(info)
+        BackupPC::XS::DeltaRefCnt info;
+    CODE:
+        RETVAL = bpc_poolRefDeltaFileFlush(info);
+    OUTPUT:
+        RETVAL
+
+void
+update(info, compress, d, count)
+        BackupPC::XS::DeltaRefCnt info;
+        int compress;
+        SV *d;
+        int count;
+    CODE:
+    {
+        bpc_digest digest;
+        char *str;
+        STRLEN len;
+
+        if ( SvPOK(d) ) {
+            str = SvPV(d, len);
+            if ( 0 < len && len < sizeof(digest.digest) ) {
+                memcpy(digest.digest, str, len);
+                digest.len = len;
+                bpc_poolRefDeltaUpdate(info, compress, &digest, count);
+            }
+        }
+    }
+
+void
+print(info)
+        BackupPC::XS::DeltaRefCnt info;
+    CODE:
+        bpc_poolRefDeltaPrint(info);
 
 MODULE = BackupPC::XS		PACKAGE = BackupPC::XS::PoolWrite
 
@@ -671,11 +730,12 @@ read(dir, dirPath, attribFileName = "attrib")
         RETVAL
 
 int
-write(dir, dirPath, attribFileName, d = NULL)
+write(dir, dirPath, attribFileName, d = NULL, deltaInfo = NULL)
         BackupPC::XS::Attrib dir;
         char *dirPath;
         char *attribFileName;
         SV *d;
+        BackupPC::XS::DeltaRefCnt deltaInfo;
     CODE:
         if ( !*dirPath ) dirPath = NULL;
         if ( d && SvPOK(d) ) {
@@ -687,12 +747,12 @@ write(dir, dirPath, attribFileName, d = NULL)
             if ( 0 < len && len < sizeof(digest.digest) ) {
                 memcpy(digest.digest, str, len);
                 digest.len = len;
-                RETVAL = !bpc_attrib_dirWrite(dir, dirPath, attribFileName, &digest);
+                RETVAL = !bpc_attrib_dirWrite(deltaInfo, dir, dirPath, attribFileName, &digest);
             } else {
-                RETVAL = !bpc_attrib_dirWrite(dir, dirPath, attribFileName, NULL);
+                RETVAL = !bpc_attrib_dirWrite(deltaInfo, dir, dirPath, attribFileName, NULL);
             }
         } else {
-            RETVAL = !bpc_attrib_dirWrite(dir, dirPath, attribFileName, NULL);
+            RETVAL = !bpc_attrib_dirWrite(deltaInfo, dir, dirPath, attribFileName, NULL);
         }
     OUTPUT:
         RETVAL
@@ -704,6 +764,13 @@ fileType2Text(type)
         RETVAL = bpc_attrib_fileType2Text(type);
     OUTPUT:
         RETVAL
+
+void
+backwardCompat(writeOldStyleAttribFile, keepOldAttribFiles)
+        int writeOldStyleAttribFile;
+        int keepOldAttribFiles;
+    CODE:
+        bpc_attrib_backwardCompat(writeOldStyleAttribFile, keepOldAttribFiles);
 
 MODULE = BackupPC::XS		PACKAGE = BackupPC::XS::AttribCache
 
@@ -728,6 +795,15 @@ DESTROY(ac)
     {
         bpc_attribCache_destroy(ac);
         free(ac);
+    }
+
+void
+setDeltaInfo(ac, deltaInfo)
+        BackupPC::XS::AttribCache ac;
+        BackupPC::XS::DeltaRefCnt deltaInfo;
+    CODE:
+    {
+        bpc_attribCache_setDeltaInfo(ac, deltaInfo);
     }
 
 SV*
@@ -893,20 +969,23 @@ path_create(path)
         RETVAL
 
 int
-path_remove(path, compress)
+path_remove(path, compress, deltaInfo = NULL)
         char *path;
         int compress;
+        BackupPC::XS::DeltaRefCnt deltaInfo;
     CODE:
-        RETVAL = bpc_path_remove(path, compress);
+        RETVAL = bpc_path_remove(deltaInfo, path, compress);
     OUTPUT:
         RETVAL
 
 int
-refCountAll(path, compress)
+refCountAll(path, compress, incr = 1, deltaInfo = NULL)
         char *path;
         int compress;
+        int incr;
+        BackupPC::XS::DeltaRefCnt deltaInfo;
     CODE:
-        RETVAL = bpc_path_refCountAll(path, compress);
+        RETVAL = bpc_path_refCountAll(deltaInfo, path, compress, incr);
     OUTPUT:
         RETVAL
 
