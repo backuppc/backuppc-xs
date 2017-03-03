@@ -234,7 +234,7 @@ Craig Barratt, E<lt>cbarratt@users.sourceforge.net<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-BackupPC code is copyright (C) 2013-2016 Craig Barratt
+BackupPC code is copyright (C) 2013-2017 Craig Barratt
 <cbarratt@users.sourceforge.net>.
 
 bpc_hashTable.c is based on code from rsync.  Rsync is Copyright
