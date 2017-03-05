@@ -14,6 +14,8 @@ pure_all :: static
 
 static ::       libmd5$(LIB_EXT)
 
+dynamic ::
+
 libmd5$(LIB_EXT): $(O_FILES)
 	$(AR) cr libmd5$(LIB_EXT) $(O_FILES)
 	$(RANLIB) libmd5$(LIB_EXT)

@@ -14,6 +14,8 @@ pure_all :: static
 
 static ::       libzlib$(LIB_EXT)
 
+dynamic ::
+
 libzlib$(LIB_EXT): $(O_FILES)
 	$(AR) cr libzlib$(LIB_EXT) $(O_FILES)
 	$(RANLIB) libzlib$(LIB_EXT)
