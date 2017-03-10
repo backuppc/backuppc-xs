@@ -2,8 +2,8 @@ Revision history for Perl extension BackupPC-XS.
 
 0.52: March 9, 2017
 
-   - updated config.guess and config.sub; fixes problem with aarch64 and ppc64le
-     reported by Denis Fateyev.
+    - updated config.guess and config.sub; fixes problem with aarch64 and ppc64le
+      reported by Denis Fateyev.
 
 0.51: March 5, 2017
 
