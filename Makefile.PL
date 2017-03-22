@@ -42,6 +42,8 @@ md5/libmd5$(LIB_EXT): md5/Makefile config.h
 config.h: config.h.in
 	./configure.sh
 
+$(OBJECT) : config.h
+
 #
 # hack to make sure config.h is built before subdirs are entered
 #
