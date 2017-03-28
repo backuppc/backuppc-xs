@@ -351,6 +351,10 @@ typedef unsigned int size_t;
 # define SIZEOF_INT64 SIZEOF_OFF_T
 #endif
 
+#ifndef ACCESSPERMS
+#define ACCESSPERMS 0777
+#endif
+
 #if OLD_HARDCODED
 typedef unsigned char uchar;
 
