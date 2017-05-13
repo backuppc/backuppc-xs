@@ -219,7 +219,11 @@ read(fd, data, len)
             SvGROW(d, len);
             str = SvPV(d, dLen);
             RETVAL = bpc_fileZIO_read(fd, (unsigned char*)str, len);
-            SvCUR_set(d, RETVAL);
+            if ( RETVAL >= 0 ) {
+                SvCUR_set(d, RETVAL);
+            } else {
+                SvCUR_set(d, 0);
+            }
         } else {
             RETVAL = -1;
         }
@@ -951,7 +955,7 @@ getFullMangledPath(ac, dirName)
         char *dirName;
     CODE:
     {
-        char path[MAXPATHLEN];
+        char path[BPC_MAXPATHLEN];
         bpc_attribCache_getFullMangledPath(ac, path, dirName, -1);
         RETVAL = newSVpvn(path, strlen(path));
     }
