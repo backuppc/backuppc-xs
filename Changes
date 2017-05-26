@@ -1,5 +1,13 @@
 Revision history for Perl extension BackupPC-XS.
 
+0.54: May 25, 2017
+
+    - checks the return value of check the return value of bpc_fileZIO_read() in BackupPC::XS::FileZIO::read()
+
+    - fixed memory leak on file open error return in bpc_fileZIO.c, and another more minor leak in bpc_dirOps.c.
+
+    - added default #define ACCESSPERMS 0777 for Solaris
+
 0.53: March 23, 2017
 
     - updates to bpc_attribCache to sanitize path names and prepending ac->currentDir
