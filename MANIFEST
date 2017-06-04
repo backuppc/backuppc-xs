@@ -46,3 +46,5 @@ zlib/zconf.h
 zlib/zlib.h
 zlib/zutil.c
 zlib/zutil.h
+META.yml                                 Module YAML meta-data (added by MakeMaker)
+META.json                                Module JSON meta-data (added by MakeMaker)
