@@ -25,7 +25,6 @@ WriteMakefile(
     INC               => '-I.', # e.g., '-I. -I/usr/include/other'
     OBJECT            => $object,
     MYEXTLIB          => 'zlib/libzlib$(LIB_EXT) md5/libmd5$(LIB_EXT)',
-    DIR               => ['md5', 'zlib'],
     depend            => { 'BackupPC_XS.o' => 'config.h' },
     clean             => { FILES => "config.log config.status config.h" },
 );
@@ -43,11 +42,6 @@ config.h: config.h.in
 	./configure.sh
 
 $(OBJECT) : config.h
-
-#
-# hack to make sure config.h is built before subdirs are entered
-#
-config :: config.h
 
 EOF
 }
