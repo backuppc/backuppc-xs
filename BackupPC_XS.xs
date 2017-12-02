@@ -993,6 +993,23 @@ refCountAll(path, compress, incr = 1, deltaInfo = NULL)
     OUTPUT:
         RETVAL
 
+void
+refCountAllInodeMax(path, compress, incr = 1, deltaInfo = NULL)
+        char *path;
+        int compress;
+        int incr;
+        BackupPC::XS::DeltaRefCnt deltaInfo;
+    PREINIT:
+        int retVal;
+        unsigned int inodeMax = 0;
+    PPCODE:
+    {
+        retVal = bpc_path_refCountAllInodeMax(deltaInfo, path, compress, incr, &inodeMax);
+        EXTEND(SP, 2);
+        PUSHs(sv_2mortal(newSViv(retVal)));
+        PUSHs(sv_2mortal(newSViv(inodeMax)));
+    }
+
 int
 lockRangeFd(fd, offset, len, block)
         int fd;
