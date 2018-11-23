@@ -1,5 +1,13 @@
 Revision history for Perl extension BackupPC-XS.
 
+0.58: Nov 23, 2018
+
+   - on inflate error, first return any remaining bytes before returning the error.
+
+   - remove leading "./" even if ac->currentDir[] is not set; change mirrors a
+     change in rsync-bpc and has no effect here since BackupPC::XS doesn't set
+     ac->currentDir[].
+
 0.57: Dec 2, 2017
 
     - added BackupPC::XS::DirOps::refCountAllInodeMax() and bpc_path_refCountAllInodeMax() to allow
