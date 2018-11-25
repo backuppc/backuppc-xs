@@ -10,6 +10,8 @@ Revision history for Perl extension BackupPC-XS.
 
    - bpc_attrib_dirWrite() updates dir->digest with new digest.
 
+   - updated configure.sh with package name and current version
+
 0.57: Dec 2, 2017
 
     - added BackupPC::XS::DirOps::refCountAllInodeMax() and bpc_path_refCountAllInodeMax() to allow

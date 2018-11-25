@@ -2419,10 +2419,10 @@ ac_config_headers="$ac_config_headers config.h"
 
 
 
-RSYNC_VERSION=3.0.9
+RSYNC_VERSION=0.58
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: Configuring rsync $RSYNC_VERSION" >&5
-$as_echo "$as_me: Configuring rsync $RSYNC_VERSION" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: Configuring backuppc-xs $RSYNC_VERSION" >&5
+$as_echo "$as_me: Configuring backuppc-xs $RSYNC_VERSION" >&6;}
 
 
 cat >>confdefs.h <<_ACEOF
@@ -9789,7 +9789,7 @@ fi
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: " >&5
 $as_echo "" >&6; }
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result:     rsync ${RSYNC_VERSION} configuration successful" >&5
-$as_echo "    rsync ${RSYNC_VERSION} configuration successful" >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result:     backuppc-xs ${RSYNC_VERSION} configuration successful" >&5
+$as_echo "    backuppc-xs ${RSYNC_VERSION} configuration successful" >&6; }
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: " >&5
 $as_echo "" >&6; }
