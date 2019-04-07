@@ -1,4 +1,4 @@
-BackupPC-XS version 0.58
+BackupPC-XS version 0.59
 ========================
 
 BackupPC::XS implements various BackupPC functions in a perl-callable
@@ -15,7 +15,7 @@ To install this module type the following:
 
 COPYRIGHT AND LICENCE
 
-BackupPC code is copyright (C) 2013-2017 Craig Barratt
+BackupPC code is copyright (C) 2013-2019 Craig Barratt
 <cbarratt@users.sourceforge.net>.
 
 bpc_hashTable.c is based on code from rsync.  Rsync is Copyright
