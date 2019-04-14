@@ -49,7 +49,7 @@ static HV* convert_file2hv(bpc_attrib_file *file, char *fileName)
     (void)hv_store(rh, "type", 4,     newSVuv(file->type), 0);
     (void)hv_store(rh, "mode", 4,     newSVuv(file->mode), 0);
     (void)hv_store(rh, "size", 4,     newSVuv(file->size), 0);
-    (void)hv_store(rh, "mtime", 5,    newSVuv(file->mtime), 0);
+    (void)hv_store(rh, "mtime", 5,    newSViv(file->mtime), 0);
     (void)hv_store(rh, "inode", 5,    newSVuv(file->inode), 0);
     (void)hv_store(rh, "nlinks", 6,   newSVuv(file->nlinks), 0);
     (void)hv_store(rh, "digest", 6,   newSVpvn((char*)file->digest.digest, file->digest.len), 0);
@@ -90,7 +90,7 @@ static void convert_hv2file(HV *hv, bpc_attrib_file *file)
     hv_get_uint(hv, "type", file->type);
     hv_get_uint(hv, "mode", file->mode);
     hv_get_uint(hv, "size", file->size);
-    hv_get_uint(hv, "mtime", file->mtime);
+    hv_get_int(hv, "mtime", file->mtime);
     hv_get_uint(hv, "inode", file->inode);
     hv_get_uint(hv, "nlinks", file->nlinks);
     hv_get_uint(hv, "compress", file->compress);
