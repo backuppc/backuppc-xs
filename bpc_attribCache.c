@@ -29,16 +29,19 @@ void bpc_attribCache_init(bpc_attribCache_info *ac, char *hostName, int backupNu
     ac->cacheLruCnt   = 0;
     ac->bkupMergeList = NULL;
     ac->bkupMergeCnt  = 0;
-    ac->currentDir[0] = '\0';
     ac->deltaInfo     = NULL;
-    strncpy(ac->hostName, hostName, BPC_MAXPATHLEN);
-    ac->hostName[BPC_MAXPATHLEN - 1] = '\0';
-    strncpy(ac->shareNameUM, shareNameUM, BPC_MAXPATHLEN);
-    ac->shareNameUM[BPC_MAXPATHLEN - 1] = '\0';
-    bpc_fileNameEltMangle(ac->shareName, BPC_MAXPATHLEN, ac->shareNameUM);
+
+    bpc_snprintf(&ac->hostName,    &ac->hostNameSz,    0, 1024, "%s", hostName);
+    bpc_snprintf(&ac->shareNameUM, &ac->shareNameUMSz, 0, 1024, "%s", shareNameUM);
+
+    bpc_bufferResize((void**)&ac->shareName, &ac->shareNameSz, 3 * ac->shareNameUMSz, 3 * ac->shareNameUMSz);
+    bpc_fileNameEltMangle(ac->shareName, ac->shareNameSz, ac->shareNameUM);
     ac->shareNameLen = strlen(ac->shareName);
-    snprintf(ac->hostDir, BPC_MAXPATHLEN, "%s/pc/%s", BPC_TopDir, ac->hostName);
-    snprintf(ac->backupTopDir, BPC_MAXPATHLEN, "%s/pc/%s/%d", BPC_TopDir, ac->hostName, ac->backupNum);
+
+    bpc_snprintf(&ac->hostDir,      &ac->hostDirSz,      0, 1024, "%s/pc/%s",    BPC_TopDir, ac->hostName);
+    bpc_snprintf(&ac->backupTopDir, &ac->backupTopDirSz, 0, 1024, "%s/pc/%s/%d", BPC_TopDir, ac->hostName, ac->backupNum);
+    bpc_snprintf(&ac->currentDir,   &ac->currentDirSz, 0, 1024, "");
+
     bpc_path_create(ac->backupTopDir);
 
     bpc_hashtable_create(&ac->attrHT,  BPC_ATTRIBCACHE_DIR_HT_SIZE, sizeof(bpc_attribCache_dir));
@@ -71,6 +74,12 @@ void bpc_attribCache_destroy(bpc_attribCache_info *ac)
     bpc_hashtable_iterate(&ac->inodeHT, (void*)bpc_attribCache_destroyEntry, NULL);
     bpc_hashtable_destroy(&ac->inodeHT);
     if ( ac->bkupMergeList ) free(ac->bkupMergeList);
+    if ( ac->shareName )     free(ac->shareName);
+    if ( ac->shareNameUM )   free(ac->shareNameUM);
+    if ( ac->hostName )      free(ac->hostName);
+    if ( ac->hostDir )       free(ac->hostDir);
+    if ( ac->backupTopDir )  free(ac->backupTopDir);
+    if ( ac->currentDir )    free(ac->currentDir);
     ac->bkupMergeList = NULL;
     ac->bkupMergeCnt  = 0;
 }
@@ -84,7 +93,7 @@ int bpc_attribCache_readOnly(bpc_attribCache_info *ac, int readOnly)
 void bpc_attribCache_setCurrentDirectory(bpc_attribCache_info *ac, char *dir)
 {
     char *p;
-    snprintf(ac->currentDir, BPC_MAXPATHLEN, "%s", dir);
+    bpc_snprintf(&ac->currentDir, &ac->currentDirSz, 0, 1024, "%s", dir);
     p = ac->currentDir + strlen(ac->currentDir) - 1;
     while ( p >= ac->currentDir && p[0] == '/' ) *p-- = '\0';
 }
@@ -113,7 +122,7 @@ static void splitPath(bpc_attribCache_info *ac, char *dir, char *fileName, char 
     /*
      * if this is a relative path, prepend ac->currentDir (provided ac->currentDir is set)
      */
-    if ( path[0] != '/' && ac->currentDir[0] ) {
+    if ( path[0] != '/' && ac->currentDir && ac->currentDir[0] ) {
         snprintf(fullPath, BPC_MAXPATHLEN, "%s/%s", ac->currentDir, path);
         path = fullPath;
     }

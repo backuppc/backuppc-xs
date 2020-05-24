@@ -19,11 +19,16 @@
 
 #include "backuppc.h"
 
-char BPC_TopDir[BPC_MAXPATHLEN];
-char BPC_PoolDir[BPC_MAXPATHLEN];
-char BPC_CPoolDir[BPC_MAXPATHLEN];
-char BPC_PoolDir3[BPC_MAXPATHLEN];
-char BPC_CPoolDir3[BPC_MAXPATHLEN];
+char *BPC_TopDir;
+static size_t BPC_TopDirSz;
+char *BPC_PoolDir;
+static size_t BPC_PoolDirSz;
+char *BPC_CPoolDir;
+static size_t BPC_CPoolDirSz;
+char *BPC_PoolDir3;
+static size_t BPC_PoolDir3Sz;
+char *BPC_CPoolDir3;
+static size_t BPC_CPoolDir3Sz;
 
 int BPC_HardLinkMax   = 32000;
 int BPC_PoolV3Enabled = 0;
@@ -36,11 +41,11 @@ void bpc_lib_conf_init(char *topDir, int hardLinkMax, int poolV3Enabled, int log
 {
     if ( logLevel >= 8 ) bpc_logMsgf("bpc_lib_conf_init: topDir = %s, logLevel = %d\n", topDir, logLevel);
 
-    snprintf(BPC_TopDir,    sizeof(BPC_TopDir),    "%s",    topDir);
-    snprintf(BPC_CPoolDir,  sizeof(BPC_CPoolDir),  "%s/%s", BPC_TopDir, "cpool");
-    snprintf(BPC_CPoolDir3, sizeof(BPC_CPoolDir3), "%s/%s", BPC_TopDir, "cpool");
-    snprintf(BPC_PoolDir,   sizeof(BPC_PoolDir),   "%s/%s", BPC_TopDir, "pool");
-    snprintf(BPC_PoolDir3,  sizeof(BPC_PoolDir3),  "%s/%s", BPC_TopDir, "pool");
+    bpc_snprintf(&BPC_TopDir,    &BPC_TopDirSz,    0, 1024, "%s",    topDir);
+    bpc_snprintf(&BPC_CPoolDir,  &BPC_CPoolDirSz,  0, 1024, "%s/%s", BPC_TopDir, "cpool");
+    bpc_snprintf(&BPC_CPoolDir3, &BPC_CPoolDir3Sz, 0, 1024, "%s/%s", BPC_TopDir, "cpool");
+    bpc_snprintf(&BPC_PoolDir,   &BPC_PoolDirSz,   0, 1024, "%s/%s", BPC_TopDir, "pool");
+    bpc_snprintf(&BPC_PoolDir3,  &BPC_PoolDir3Sz,  0, 1024, "%s/%s", BPC_TopDir, "pool");
 
     BPC_HardLinkMax   = hardLinkMax;
     BPC_PoolV3Enabled = poolV3Enabled;
@@ -258,6 +263,46 @@ void bpc_fileNameMangle(char *path, int pathSize, char *pathUM)
     *path = '\0';
 }
 
+void bpc_bufferResize(void **bufPtr, size_t *bufLen, size_t needed, size_t incrLen)
+{
+    if ( !*bufPtr) {
+        *bufLen = incrLen;
+        *bufPtr = malloc(*bufLen);
+    } else if ( needed >= *bufLen ) {
+        *bufLen = needed + incrLen;
+        *bufPtr = realloc(*bufPtr, *bufLen);
+    }
+    if ( !*bufPtr ) {
+        fprintf(stderr, "bpc_bufferResize: panic: can't alloc %lu bytes\n", (unsigned long)*bufLen);
+    }
+}
+
+int bpc_vsnprintf(char **buf, size_t *bufLen, unsigned int offset, size_t incrLen, char *fmt, va_list args)
+{
+    int strLen = strlen(fmt);
+
+    do {
+        va_list args2;
+        va_copy(args2, args);
+
+        bpc_bufferResize((void**)buf, bufLen, offset + strLen, incrLen);
+        strLen = vsnprintf((*buf) + offset, *bufLen - offset, fmt, args2);
+        va_end(args2);
+    } while ( strLen >= 0 && offset + strLen >= *bufLen );
+    return strLen;
+}
+
+int bpc_snprintf(char **buf, size_t *bufLen, unsigned int offset, size_t incrLen, char *fmt, ...)
+{
+    va_list args;
+    int strLen;
+
+    va_start(args, fmt);
+    strLen = bpc_vsnprintf(buf, bufLen, offset, incrLen, fmt, args);
+    va_end(args);
+    return strLen;
+}
+
 /* 
  * Simple logging functions.  If you register callbacks, they will be called.
  * Otherwise, messages are accumulated, and a callback allows the
@@ -281,28 +326,8 @@ void bpc_logMsgf(char *fmt, ...)
     va_list args;
     va_start(args, fmt); 
 
-    if ( !LogData.mesg ) {
-        LogData.mesgSize = 8192;
-        LogData.mesgLen  = 0;
-        if ( !(LogData.mesg = malloc(LogData.mesgSize)) ) {
-            printf("bpc_logMessagef: panic: can't allocate %lu bytes\n", (unsigned long)LogData.mesgSize);
-            LogData.errorCnt++;
-            return;
-        }
-    }
     if ( BPC_TmpFileUnique >= 0 ) pad = 2;
-    strLen = vsnprintf(LogData.mesg + LogData.mesgLen + pad, LogData.mesgSize - LogData.mesgLen - pad, fmt, args);
-    if ( strLen + 2 + pad + LogData.mesgLen > LogData.mesgSize ) {
-        LogData.mesgSize += LogData.mesgSize + strLen + 2 + pad;
-        if ( !(LogData.mesg = realloc(LogData.mesg, LogData.mesgSize)) ) {
-            printf("bpc_logMessagef: panic: can't realloc %lu bytes\n", (unsigned long)LogData.mesgSize);
-            LogData.errorCnt++;
-            return;
-        }
-        va_start(args, fmt); 
-        strLen = vsnprintf(LogData.mesg + LogData.mesgLen + pad, LogData.mesgSize - LogData.mesgLen - pad, fmt, args);
-        va_end(args);
-    }
+    strLen = bpc_vsnprintf(&LogData.mesg, &LogData.mesgSize, LogData.mesgLen + pad, LogData.mesgSize > 8192 ? LogData.mesgSize : 8192, fmt, args);
     if ( strLen > 0 ) {
         if ( pad ) {
             LogData.mesg[LogData.mesgLen++] = BPC_TmpFileUnique ? 'G' : 'R';
@@ -327,28 +352,8 @@ void bpc_logErrf(char *fmt, ...)
     va_list args;
     va_start(args, fmt); 
 
-    if ( !LogData.mesg ) {
-        LogData.mesgSize = 8192;
-        LogData.mesgLen  = 0;
-        if ( !(LogData.mesg = malloc(LogData.mesgSize)) ) {
-            printf("bpc_logMessagef: panic: can't allocate %lu bytes\n", (unsigned long)LogData.mesgSize);
-            LogData.errorCnt++;
-            return;
-        }
-    }
     if ( BPC_TmpFileUnique >= 0 ) pad = 2;
-    strLen = vsnprintf(LogData.mesg + LogData.mesgLen + pad, LogData.mesgSize - LogData.mesgLen - pad, fmt, args);
-    if ( strLen + 2 + pad + LogData.mesgLen > LogData.mesgSize ) {
-        LogData.mesgSize += LogData.mesgSize + strLen + 2 + pad;
-        if ( !(LogData.mesg = realloc(LogData.mesg, LogData.mesgSize)) ) {
-            printf("bpc_logMessagef: panic: can't realloc %lu bytes\n", (unsigned long)LogData.mesgSize);
-            LogData.errorCnt++;
-            return;
-        }
-        va_start(args, fmt); 
-        strLen = vsnprintf(LogData.mesg + LogData.mesgLen + pad, LogData.mesgSize - LogData.mesgLen - pad, fmt, args);
-        va_end(args);
-    }
+    strLen = bpc_vsnprintf(&LogData.mesg, &LogData.mesgSize, LogData.mesgLen + pad, LogData.mesgSize > 8192 ? 2 * LogData.mesgSize : 8192, fmt, args);
     if ( strLen > 0 ) {
         if ( pad ) {
             LogData.mesg[LogData.mesgLen++] = BPC_TmpFileUnique ? 'G' : 'R';
