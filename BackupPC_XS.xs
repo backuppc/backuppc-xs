@@ -700,6 +700,21 @@ digest(dir)
         }
     }
 
+void
+iterate(dir, idx)
+        BackupPC::XS::Attrib dir;
+        unsigned int idx;
+    PREINIT:
+        bpc_attrib_file *file;
+    PPCODE:
+    {
+        if ( !bpc_attrib_fileIterate(dir, &file, &idx) && file ) {
+            EXTEND(SP, 2);
+            PUSHs(sv_2mortal(newRV_noinc((SV*)convert_file2hv(file, file->name))));
+            PUSHs(sv_2mortal(newSViv(idx)));
+        }
+    }
+
 char*
 errStr(void)
     CODE:

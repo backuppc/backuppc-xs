@@ -369,6 +369,13 @@ void bpc_attrib_fileDeleteName(bpc_attrib_dir *dir, char *fileName)
     bpc_hashtable_nodeDelete(&dir->filesHT, file);
 }
 
+int bpc_attrib_fileIterate(bpc_attrib_dir *dir, bpc_attrib_file **file, uint *idx)
+{
+    *file = bpc_hashtable_nextEntry(&dir->filesHT, idx);
+    if ( !*file ) return -1;
+    return 0;
+}
+
 int bpc_attrib_fileCount(bpc_attrib_dir *dir)
 {
     return bpc_hashtable_entryCount(&dir->filesHT);
