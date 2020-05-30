@@ -26,11 +26,11 @@
 
 #define BPC_MAXPATHLEN          (2 * MAXPATHLEN)
 
-extern char *BPC_PoolDir;
-extern char *BPC_CPoolDir;
-extern char *BPC_PoolDir3;
-extern char *BPC_CPoolDir3;
-extern char *BPC_TopDir;
+extern char BPC_PoolDir[];
+extern char BPC_CPoolDir[];
+extern char BPC_PoolDir3[];
+extern char BPC_CPoolDir3[];
+extern char BPC_TopDir[];
 extern int BPC_HardLinkMax;
 extern int BPC_PoolV3Enabled;
 extern int BPC_TmpFileUnique;
@@ -244,9 +244,6 @@ void bpc_digest_md52path_v3(char *path, int compress, bpc_digest *digest);
 void bpc_digest_buffer2MD5_v3(bpc_digest *digest, uchar *buffer, size_t bufferLen);
 void bpc_fileNameEltMangle(char *path, int pathSize, char *pathUM);
 void bpc_fileNameMangle(char *path, int pathSize, char *pathUM);
-void bpc_bufferResize(void **bufPtr, size_t *bufLen, size_t needed, size_t incrLen);
-int bpc_vsnprintf(char **buf, size_t *bufLen, unsigned int offset, size_t incrLen, char *fmt, va_list args);
-int bpc_snprintf(char **buf, size_t *bufLen, unsigned int offset, size_t incrLen, char *fmt, ...);
 void bpc_logMsgf(char *fmt, ...);
 void bpc_logErrf(char *fmt, ...);
 void bpc_logMsgGet(char **mesg, size_t *mesgLen);
@@ -400,19 +397,13 @@ typedef struct {
      */
     bpc_deltaCount_info *deltaInfo;
 
+    char shareName[BPC_MAXPATHLEN];
     int shareNameLen;
-    char *shareName;
-    size_t shareNameSz;
-    char *shareNameUM;
-    size_t shareNameUMSz;
-    char *hostName;
-    size_t hostNameSz;
-    char *hostDir;
-    size_t hostDirSz;
-    char *backupTopDir;
-    size_t backupTopDirSz;
-    char *currentDir;
-    size_t currentDirSz;
+    char shareNameUM[BPC_MAXPATHLEN];
+    char hostName[BPC_MAXPATHLEN];
+    char hostDir[BPC_MAXPATHLEN];
+    char backupTopDir[BPC_MAXPATHLEN];
+    char currentDir[BPC_MAXPATHLEN];
 } bpc_attribCache_info;
 
 typedef struct {
