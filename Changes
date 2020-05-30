@@ -10,6 +10,8 @@ Revision history for Perl extension BackupPC-XS.
 
    - increased some buffer sizes to avoid benign compiler warnings for snprintf()
 
+   - bpc_attribCache_loadPath() removes any extraneous BPC_FTYPE_DELETED file types
+
 0.59: Apr 7, 2019
 
    - fix to use correct int format when reading v3 attrib files, reported and fixed
