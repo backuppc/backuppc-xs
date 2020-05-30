@@ -12,6 +12,8 @@ Revision history for Perl extension BackupPC-XS.
 
    - bpc_attribCache_loadPath() removes any extraneous BPC_FTYPE_DELETED file types
 
+   - bpc_attrib_buf2fileFull() calls bpc_attrib_xattrDeleteAll(file)
+
 0.59: Apr 7, 2019
 
    - fix to use correct int format when reading v3 attrib files, reported and fixed
