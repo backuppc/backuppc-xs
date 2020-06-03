@@ -102,21 +102,25 @@ static void convert_hv2file(HV *hv, bpc_attrib_file *file)
         file->digest.len = 0;
     }
     if ( (svp = hv_fetch(hv, "xattr", 5, 0)) && *svp ) {
-        HE *he;
-        HV *hvXattr = (HV*)SvRV(*svp);
-        /*
-         * clear out the old xattrs, and copy in the new
-         */
-        bpc_attrib_xattrDeleteAll(file);
-        hv_iterinit(hvXattr);
-        while ( (he = hv_iternext(hvXattr)) ) {
-            I32 keyLen;
-            STRLEN valueLen;
-            char *key = hv_iterkey(he, &keyLen), *value;
-            SV *valSV = hv_iterval(hvXattr, he);
+        if ( SvTYPE(SvRV(*svp)) != SVt_PVHV ) {
+            bpc_attrib_xattrDeleteAll(file);
+        } else {
+            HE *he;
+            HV *hvXattr = (HV*)SvRV(*svp);
+            /*
+             * clear out the old xattrs, and copy in the new
+             */
+            bpc_attrib_xattrDeleteAll(file);
+            hv_iterinit(hvXattr);
+            while ( (he = hv_iternext(hvXattr)) ) {
+                I32 keyLen;
+                STRLEN valueLen;
+                char *key = hv_iterkey(he, &keyLen), *value;
+                SV *valSV = hv_iterval(hvXattr, he);
 
-            value = SvPV(valSV, valueLen);
-            bpc_attrib_xattrSetValue(file, key, keyLen, value, valueLen);
+                value = SvPV(valSV, valueLen);
+                bpc_attrib_xattrSetValue(file, key, keyLen + 1, value, valueLen);
+            }
         }
     }
 }
