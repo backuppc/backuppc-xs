@@ -1,5 +1,13 @@
 Revision history for Perl extension BackupPC-XS.
 
+0.61: June 8, 2020
+
+   - fix view of migrated v3 backup
+
+   - convert_hv2file() ensures xattr type is hash, and uses correct keyLen+1
+
+   - added BackupPC::XS::FileDigest::digest and bpc_fileDigest()
+
 0.60: May 30, 2020
 
    - allow mtime to be signed in attrib files
