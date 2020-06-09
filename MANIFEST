@@ -9,6 +9,7 @@ backuppc.h
 bpc_attrib.c
 bpc_attribCache.c
 bpc_dirOps.c
+bpc_fileDigest.c
 bpc_fileZIO.c
 bpc_hashtable.c
 bpc_lib.c

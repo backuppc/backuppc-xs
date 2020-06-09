@@ -981,6 +981,23 @@ getFullMangledPath(ac, dirName)
     OUTPUT:
         RETVAL
 
+MODULE = BackupPC::XS		PACKAGE = BackupPC::XS::FileDigest
+
+void
+digest(fileName, compress)
+        char *fileName;
+        int compress;
+    PREINIT:
+    PPCODE:
+    {
+        bpc_digest digest;
+        if ( bpc_fileDigest(fileName, compress, &digest) == 0 ) {
+            EXTEND(SP, 1);
+            PUSHs(sv_2mortal(newSVpvn((char*)digest.digest, digest.len)));
+        }
+    }
+
+
 MODULE = BackupPC::XS		PACKAGE = BackupPC::XS::DirOps
 
 int

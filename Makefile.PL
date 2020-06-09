@@ -7,6 +7,7 @@ my $object = q[
             bpc_attrib$(OBJ_EXT)
             bpc_attribCache$(OBJ_EXT)
             bpc_dirOps$(OBJ_EXT)
+            bpc_fileDigest$(OBJ_EXT)
             bpc_fileZIO$(OBJ_EXT)
             bpc_hashtable$(OBJ_EXT)
             bpc_lib$(OBJ_EXT)
