@@ -997,7 +997,6 @@ digest(fileName, compress)
         }
     }
 
-
 MODULE = BackupPC::XS		PACKAGE = BackupPC::XS::DirOps
 
 int
