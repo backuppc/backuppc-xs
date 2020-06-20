@@ -412,6 +412,7 @@ void bpc_attrib_dirInit(bpc_attrib_dir *dir, int compressLevel)
 {
     dir->digest.len = 0;
     dir->compress = compressLevel;
+    dir->needRewrite = 0;
     bpc_hashtable_create(&dir->filesHT, 512, sizeof(bpc_attrib_file));
 }
 
@@ -419,6 +420,11 @@ void bpc_attrib_dirDestroy(bpc_attrib_dir *dir)
 {
     bpc_hashtable_iterate(&dir->filesHT, (void*)bpc_attrib_fileDestroy, NULL);
     bpc_hashtable_destroy(&dir->filesHT);
+}
+
+int bpc_attrib_dirNeedRewrite(bpc_attrib_dir *dir)
+{
+    return dir->needRewrite;
 }
 
 typedef struct {
@@ -617,7 +623,7 @@ static void setVarInt(uchar **bufPP, uchar *bufEnd, int64 value)
  * If there isn't enough data to extract a complete file structure, the return value
  * will be greater than bufEnd.  You should gather more data and re-call the function.
  */
-uchar *bpc_attrib_buf2file(bpc_attrib_file *file, uchar *buf, uchar *bufEnd, int xattrNumEntries)
+uchar *bpc_attrib_buf2file(bpc_attrib_file *file, uchar *buf, uchar *bufEnd, int xattrNumEntries, int *xattrFixup)
 {
     uchar *bufP   = buf;
     int i;
@@ -644,6 +650,9 @@ uchar *bpc_attrib_buf2file(bpc_attrib_file *file, uchar *buf, uchar *bufEnd, int
         uint valueLen = getVarInt(&bufP, bufEnd);
 
         if ( bufP + keyLen + valueLen <= bufEnd ) {
+            if ( xattrFixup && bufP[keyLen - 1] != 0x0 ) {
+                *xattrFixup = 1;
+            }
             bpc_attrib_xattrSetValue(file, bufP, keyLen, bufP + keyLen, valueLen);
         }
         bufP += keyLen + valueLen;
@@ -673,7 +682,7 @@ uchar *bpc_attrib_buf2fileFull(bpc_attrib_file *file, uchar *bufP, uchar *bufEnd
     bpc_attrib_xattrDeleteAll(file);
     xattrNumEntries = getVarInt(&bufP, bufEnd);
     if ( BPC_LogLevel >= 6 ) bpc_logMsgf("bpc_attrib_buf2fileFull: xattrNumEntries = %d\n", xattrNumEntries);
-    bufP = bpc_attrib_buf2file(file, bufP, bufEnd, xattrNumEntries);
+    bufP = bpc_attrib_buf2file(file, bufP, bufEnd, xattrNumEntries, NULL);
     return bufP;
 }
 
@@ -877,6 +886,7 @@ int bpc_attrib_dirRead(bpc_attrib_dir *dir, char *dirPath, char *attribFilePath,
             char *fileName;
             bpc_attrib_file *file;
             uchar *bufPsave = bufP;
+            int xattrFixup = 0;
 
             if ( nRead == sizeof(buf) && bufP > buf + nRead - 2 * BPC_MAXPATHLEN
                     && read_more_data(&fd, buf, sizeof(buf), &nRead, &bufP, attribPath) ) {
@@ -905,7 +915,8 @@ int bpc_attrib_dirRead(bpc_attrib_dir *dir, char *dirPath, char *attribFilePath,
             bpc_attrib_fileInit(file, fileName, xattrNumEntries);
             file->backupNum = backupNum;
 
-            bufP = bpc_attrib_buf2file(file, bufP, buf + nRead, xattrNumEntries);
+            bufP = bpc_attrib_buf2file(file, bufP, buf + nRead, xattrNumEntries, &xattrFixup);
+            dir->needRewrite |= xattrFixup;
             if ( bufP > buf + nRead ) {
                 /*
                  * Need to get more data and try again.  We have allocated file->name,
@@ -1217,6 +1228,7 @@ int bpc_attrib_dirWrite(bpc_deltaCount_info *deltaInfo, bpc_attrib_dir *dir, cha
     char *p;
     int fdNum;
     size_t attribPathLen, baseAttribFileNameLen;
+    int digestChanged;
 
     if ( WriteOldStyleAttribFile ) return bpc_attrib_dirWriteOld(deltaInfo, dir, dirPath, attribFileName, oldDigest);
 
@@ -1269,34 +1281,39 @@ int bpc_attrib_dirWrite(bpc_deltaCount_info *deltaInfo, bpc_attrib_dir *dir, cha
         }
         attribPath[attribPathLen++] = '_';
         bpc_digest_digest2str(&digest, attribPath + attribPathLen);
+        /*
+         * Now create an empty attrib file with the file name digest
+         */
+        if ( (fdNum = open(attribPathTemp, O_WRONLY | O_CREAT | O_TRUNC, 0660)) < 0 ) {
+            bpc_logErrf("bpc_attrib_dirWrite: can't open/create raw %s for writing\n", attribPathTemp);
+            return -1;
+        }
+        close(fdNum);
+        if ( rename(attribPathTemp, attribPath) ) {
+            bpc_logErrf("bpc_attrib_dirWrite: rename from %s to %s failed\n", attribPathTemp, attribPath);
+            return -1;
+        }
+        if ( BPC_LogLevel >= 5 ) bpc_logMsgf("bpc_attrib_dirWrite: created new attrib file %s\n", attribPath);
     } else {
-        digest.len = 0;
+        memset(&digest, 0, sizeof(digest));
         attribPath[attribPathLen++] = '_';
         strcpy(attribPath + attribPathLen, "0");
+        if ( BPC_LogLevel >= 5 ) bpc_logMsgf("bpc_attrib_dirWrite: skipping creating new empty attrib file %s\n", attribPath);
+        unlink(attribPath);
     }
     
-    /*
-     * Now create an empty attrib file
-     */
-    if ( (fdNum = open(attribPathTemp, O_WRONLY | O_CREAT | O_TRUNC, 0660)) < 0 ) {
-        bpc_logErrf("bpc_attrib_dirWrite: can't open/create raw %s for writing\n", attribPathTemp);
-        return -1;
-    }
-    close(fdNum);
-    if ( rename(attribPathTemp, attribPath) ) {
-        bpc_logErrf("bpc_attrib_dirWrite: rename from %s to %s failed\n", attribPathTemp, attribPath);
-        return -1;
-    }
-    if ( BPC_LogLevel >= 5 ) bpc_logMsgf("bpc_attrib_dirWrite: created new attrib file %s\n", attribPath);
-
     if ( BPC_LogLevel >= 8 ) bpc_logMsgf("bpc_attrib_dirWrite: new attrib digest = 0x%02x%02x%02x..., oldDigest = 0x%02x%02x...\n",
                 digest.digest[0], digest.digest[1], digest.digest[2],
                 oldDigest ? oldDigest->digest[0] : 0x0, oldDigest ? oldDigest->digest[1] : 0x0);
-    bpc_poolRefDeltaUpdate(deltaInfo, dir->compress, &digest, 1);
+
+    digestChanged = !oldDigest || bpc_digest_compare(&digest, oldDigest);
+    if ( digestChanged && digest.len > 0 ) {
+        bpc_poolRefDeltaUpdate(deltaInfo, dir->compress, &digest, 1);
+    }
 
     if ( oldDigest ) {
-        if ( !bpc_digest_compare(&digest, oldDigest) ) {
-            if ( BPC_LogLevel >= 2 ) bpc_logMsgf("bpc_attrib_dirWrite: old attrib has same digest; no changes to ref counts\n");
+        if ( !digestChanged ) {
+            if ( BPC_LogLevel >= 4 ) bpc_logMsgf("bpc_attrib_dirWrite: old attrib has same digest; no changes to ref counts\n");
             return 0;
         }
         if ( attribPathLen + oldDigest->len * 2 + 2 >= sizeof(attribPath) ) {
