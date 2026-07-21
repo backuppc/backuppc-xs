@@ -1,5 +1,13 @@
+2026.07.21
+  VERSION 0.63rc2:
+  - SECURITY:
+    Fix a few missing error checks, at least one is capable of causing
+    a crash if BackupPC can be persuaded to process damaged data.
+  - Add more (precautionary) error checks.
+  - Silence more compiler warnings.
+  - Some minor comment changes.
 2025.11.08
-  VERSION 0.63:
+  VERSION 0.63rc1:
   - Remove the bundled zlib, which has security issues.
   - Replace 'configure.sh' by 'configure'.  Original file remains for reference
     and probably still works.
