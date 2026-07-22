@@ -1,3 +1,6 @@
+2026.07.22
+  VERSION 0.63rc3:
+  - Fix a stupid errno in one of yesterday's additioinal error checks.
 2026.07.21
   VERSION 0.63rc2:
   - SECURITY:
