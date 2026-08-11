@@ -827,6 +827,7 @@ int bpc_attrib_dirRead(bpc_attrib_dir *dir, char *dirPath, char *attribFilePath,
 
         if ( nRead < 20 ) {
             bpc_logErrf("bpc_attrib_dirRead: can't read at least 20 bytes from %s\n", attribPath);
+            bpc_fileZIO_close(&fd);
             return -1;
         }
         bpc_fileZIO_close(&fd);
