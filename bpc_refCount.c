@@ -1,7 +1,7 @@
 /*
  * Routines to provide reference counting
  *
- * Copyright (C) 2013 Craig Barratt.
+ * Copyright (C) 2013-2026 Craig Barratt and G.W. Haywood.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -157,7 +157,7 @@ static int bpc_poolRef_read_more_data(int fd, uchar *buf, size_t bufSize, size_t
             thisRead = read(fd, buf + *nRead, bufSize - *nRead);
         } while ( thisRead < 0 && errno == EINTR );
         if ( thisRead < 0 ) {
-            bpc_logErrf("bpc_poolRefFileRead: can't read more bytes from %s (errno %d)\n", fileName, errno);
+            bpc_logErrf("bpc_poolRef_read_more_data: can't read more bytes from %s (errno %d)\n", fileName, errno);
             return -1;
         }
         if ( BPC_LogLevel >= 8 ) bpc_logMsgf("bpc_poolRef_read_more_data: read %d bytes (nRead = %d, sizeof(buf) = %d)\n", thisRead, *nRead, bufSize);
@@ -234,6 +234,7 @@ static void bpc_poolRefFileWriteEntry(DigestInfo *info, write_info *out)
 
 /*
  * Write a pool reference file from the hash table.
+ * Returns out.errorCnt.  This will be 0 on success, but a positive number on failure!!
  */
 int bpc_poolRefFileWrite(bpc_refCount_info *info, char *fileName)
 {
@@ -282,6 +283,7 @@ int bpc_poolRefFileWrite(bpc_refCount_info *info, char *fileName)
 
 /*
  * Read a pool reference file into the hash table, which should be already initialized.
+ * Returns 0 on success, -1 on failure.
  */
 int bpc_poolRefFileRead(bpc_refCount_info *info, char *fileName)
 {
@@ -300,6 +302,7 @@ int bpc_poolRefFileRead(bpc_refCount_info *info, char *fileName)
     }
     if ( bpc_poolRef_read_more_data(fd, buf, sizeof(buf), &nRead, &bufP, fileName) < 0 ) {
         bpc_logErrf("bpc_poolRefFileRead: can't read data from %s (errno %d)\n", fileName, errno);
+	close(fd);
         return -1;
     }
     magic = CONV_BUF_TO_UINT32(bufP);
@@ -307,6 +310,7 @@ int bpc_poolRefFileRead(bpc_refCount_info *info, char *fileName)
 
     if ( magic != BPC_POOL_REF_MAGIC ) {
         bpc_logErrf("bpc_poolRefFileRead: bad magic number 0x%x (expected 0x%x)\n", magic, BPC_POOL_REF_MAGIC);
+	close(fd);
         return -1;
     }
 
@@ -323,6 +327,7 @@ int bpc_poolRefFileRead(bpc_refCount_info *info, char *fileName)
         if ( nRead == sizeof(buf) && bufP > buf + nRead - 64
                 && bpc_poolRef_read_more_data(fd, buf, sizeof(buf), &nRead, &bufP, fileName) < 0 ) {
             bpc_logErrf("bpc_poolRefFileRead: can't read more data from %s (errno %d)\n", fileName, errno);
+	    close(fd);
             return -1;
         }
         digest.len = *bufP++;
