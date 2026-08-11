@@ -27,10 +27,15 @@
 static void *DataBufferFreeList = (void*)NULL;
 
 /*
- * Open a regular or compressed file for reading or writing/create
+ * Open a regular or compressed file for reading or writing/create.
+ * On success return 0, and the bpc_fileZIO_fd structure pointer *fd will
+ *   have been overwritten to point to a freshly calloc'ed area of memory.
+ * On failure return -1.  As of July 2026 failure includes the possibility that
+ *   a call to calloc() in BackupPC_XS.xs fails and thus returns NULL for fd.
  */
 int bpc_fileZIO_open(bpc_fileZIO_fd *fd, char *fileName, int writeFile, int compressLevel)
 {
+    if ( fd == NULL ) return -1;
     fd->strm.next_out  = NULL;
     fd->strm.zalloc    = NULL;
     fd->strm.zfree     = NULL;
@@ -101,9 +106,14 @@ int bpc_fileZIO_open(bpc_fileZIO_fd *fd, char *fileName, int writeFile, int comp
  *
  * This function is only used to support the legacy BackupPC::FileZIO feature that allows you to
  * pass STDIN in as an argument to open().
+ *
+ * Return -1 on failure, which as of July 2026 includes the possibility that
+ *   a call to calloc() in BackupPC_XS.xs fails and thus returns NULL for fd.
+ * Otherwise return 0.
  */
 int bpc_fileZIO_fdopen(bpc_fileZIO_fd *fd, FILE *stream, int writeFile, int compressLevel)
 {
+    if( fd == NULL ) return -1;
     fd->strm.next_out  = NULL;
     fd->strm.zalloc    = NULL;
     fd->strm.zfree     = NULL;
@@ -159,14 +169,14 @@ void bpc_fileZIO_writeTeeStderr(bpc_fileZIO_fd *fd, int tee)
 
 /*
  * Read from a compressed or regular file into *buf.
- * Returns a negative value on error, may also set fd->error.
+ * Returns a negative value on error, fd->error may also be set.
  * Returns the number of bytes read on success.
  */
 ssize_t bpc_fileZIO_read(bpc_fileZIO_fd *fd, uchar *buf, size_t nRead)
 {
     size_t totalRead = 0;
 
-    if ( fd->write || fd->fd < 0 || nRead < 0 ) return -1;
+    if ( fd->write || fd->fd < 0 ) return -1;
     if ( fd->compressLevel == 0 ) {
         ssize_t thisRead;
         while ( nRead > 0 ) {
@@ -181,7 +191,7 @@ ssize_t bpc_fileZIO_read(bpc_fileZIO_fd *fd, uchar *buf, size_t nRead)
         }
         return totalRead;
     }
-    if ( fd->error ) return fd->error;
+    if ( fd->error ) return -1;			/* Why is this even here?  == GWH == */
     while ( nRead > 0 ) {
         /*
          * Start by trying to read more of the compressed input file
@@ -275,6 +285,7 @@ ssize_t bpc_fileZIO_read(bpc_fileZIO_fd *fd, uchar *buf, size_t nRead)
 /*
  * Write to a compressed or regular file.
  * Write flush and eof is indicated with nWrite == 0.
+ * Returns a negative value on error, may also set fd->error.
  */
 ssize_t bpc_fileZIO_write(bpc_fileZIO_fd *fd, uchar *buf, size_t nWrite)
 {
@@ -287,14 +298,18 @@ ssize_t bpc_fileZIO_write(bpc_fileZIO_fd *fd, uchar *buf, size_t nWrite)
             do {
                 thisWrite = write(fd->fd, buf, nWrite);
             } while ( thisWrite < 0 && errno == EINTR );
-            if ( thisWrite < 0 ) return thisWrite;
+            if ( thisWrite < 0 )
+	    {
+		fd->error = errno;
+		return thisWrite;
+	    }
             buf        += thisWrite;
             nWrite     -= thisWrite;
             totalWrite += thisWrite;
         }
         return totalWrite;
     }
-    if ( fd->error ) return fd->error;
+    if ( fd->error ) return -1;			/* Why is this even here?  == GWH == */
 
     if ( nWrite == 0 || (fd->strm.total_in > (1 << 23) && fd->strm.total_out < (1 << 18)) ) {
         /* 
@@ -346,7 +361,11 @@ ssize_t bpc_fileZIO_write(bpc_fileZIO_fd *fd, uchar *buf, size_t nWrite)
             do {
                 thisWrite = write(fd->fd, writePtr, numOut);
             } while ( thisWrite < 0 && errno == EINTR );
-            if ( thisWrite < 0 ) return thisWrite;
+            if ( thisWrite < 0 )
+	    {
+		fd->error = errno;
+		return thisWrite;
+	    }
             numOut   -= thisWrite;
             writePtr += thisWrite;
         }
@@ -402,6 +421,10 @@ int bpc_fileZIO_rewind(bpc_fileZIO_fd *fd)
  * Returns 0 on a successful read.  The string length is written to *strLen.
  * The string is written to **str.  The string is NOT terminated with '\0'.
  * At EOF sets *str to NULL and strLen to 0.
+ * 
+ * This function is called only from BackupPC_XS; the XS wrapper calls the
+ * newSVpvn() function so we might want to consider possible memory leaks.
+ *
  */
 int bpc_fileZIO_readLine(bpc_fileZIO_fd *fd, char **str, size_t *strLen)
 {
@@ -472,7 +495,7 @@ int bpc_fileZIO_readLine(bpc_fileZIO_fd *fd, char **str, size_t *strLen)
         if ( fd->lineBufLen < fd->lineBufSize && !fd->lineBufEof ) {
             int nread = bpc_fileZIO_read(fd, (uchar*)fd->lineBuf + fd->lineBufLen, fd->lineBufSize - fd->lineBufLen);
             if ( nread < 0 ) {
-                bpc_logErrf("bpc_fileZIO_readLine: reading %u returned %d\n", (unsigned)(fd->lineBufSize - fd->lineBufLen), nread);
+	      bpc_logErrf("bpc_fileZIO_readLine: attmpting to read %lld bytes returned %d\n", (long long)(fd->lineBufSize - fd->lineBufLen), nread);
                 return nread;
             }
             if ( nread == 0 ) fd->lineBufEof = 1;
