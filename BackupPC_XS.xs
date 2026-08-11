@@ -1,7 +1,7 @@
 /*
  * XS glue for perl interface to BackupPC libraries.
  *
- * Copyright (C) 2013 Craig Barratt.
+ * Copyright (C) 2013-2026 Craig Barratt and G.W. Haywood.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -57,7 +57,9 @@ static HV* convert_file2hv(bpc_attrib_file *file, char *fileName)
 
     if ( (listLen = bpc_attrib_xattrList(file, NULL, 0, 0)) > 0 ) {
         char *keys = malloc(listLen), *p;
-
+	/*
+	 * TODO: What if the malloc() call failed?  == GWH ==
+	 */
         if ( keys && bpc_attrib_xattrList(file, keys, listLen, 0) > 0 ) {
             HV *rhAttr = newHV();
             for ( i = 0, p = keys ; i < listLen ; ) {
@@ -137,6 +139,7 @@ open(fileName, writeFile, compressLevel)
     CODE:
     {
         RETVAL = calloc(1, sizeof(bpc_fileZIO_fd));
+	if ( ! RETVAL ) croak( "BackupPC::XS::FileZIO::open: failed to calloc %lld bytes", (long long)sizeof(bpc_fileZIO_fd) );
         if ( bpc_fileZIO_open(RETVAL, fileName, writeFile, compressLevel) < 0 ) {
             free(RETVAL);
             XSRETURN_UNDEF;
@@ -153,6 +156,7 @@ fdopen(stream, writeFile, compressLevel)
     CODE:
     {
         RETVAL = calloc(1, sizeof(bpc_fileZIO_fd));
+	if ( ! RETVAL ) croak( "BackupPC::XS::FileZIO::fdopen: failed to calloc %lld bytes", (long long)sizeof(bpc_fileZIO_fd) );
         if ( bpc_fileZIO_fdopen(RETVAL, stream, writeFile, compressLevel) < 0 ) {
             free(RETVAL);
             XSRETURN_UNDEF;
@@ -165,8 +169,10 @@ void
 DESTROY(fd)
         BackupPC::XS::FileZIO fd;
     CODE:
+    {
         bpc_fileZIO_close(fd);
         free(fd);
+    }
 
 void
 close(fd)
@@ -186,7 +192,7 @@ rewind(fd)
     OUTPUT:
         RETVAL
 
-int
+int64
 write(fd, data)
         BackupPC::XS::FileZIO fd;
         SV *data;
@@ -198,6 +204,7 @@ write(fd, data)
         if ( SvROK(data) ) {
             str = SvPV(SvRV(data), len);
             RETVAL = bpc_fileZIO_write(fd, (unsigned char*)str, len);
+	    if ( RETVAL < 0 ) croak( "BackupPC::XS::FileZIO::write: failed to write %lld bytes", (long long)len );
         } else {
             RETVAL = -1;
         }
@@ -205,7 +212,7 @@ write(fd, data)
     OUTPUT:
         RETVAL
 
-int
+int64
 read(fd, data, len)
         BackupPC::XS::FileZIO fd;
         SV *data;
@@ -253,7 +260,9 @@ writeTeeStderr(fd, tee)
         BackupPC::XS::FileZIO fd;
         int tee;
     CODE:
+    {
         bpc_fileZIO_writeTeeStderr(fd, tee);
+    }
 
 MODULE = BackupPC::XS		PACKAGE = BackupPC::XS::PoolRefCnt
 
@@ -263,6 +272,7 @@ new(entryCnt = 65536)
     CODE:
     {
         RETVAL = calloc(1, sizeof(bpc_refCount_info));
+	if ( ! RETVAL ) croak( "BackupPC::XS::PoolRefCnt::new: failed to calloc %lld bytes", (long long)sizeof(bpc_refCount_info) );
         bpc_poolRefInit((bpc_refCount_info*)RETVAL, entryCnt);
     }
     OUTPUT:
@@ -405,7 +415,9 @@ read(info, fileName)
         BackupPC::XS::PoolRefCnt info;
         char *fileName;
     CODE:
+    {
         RETVAL = bpc_poolRefFileRead(info, fileName);
+    }
     OUTPUT:
         RETVAL
 
@@ -414,7 +426,9 @@ write(info, fileName)
         BackupPC::XS::PoolRefCnt info;
         char *fileName;
     CODE:
+    {
         RETVAL = bpc_poolRefFileWrite(info, fileName);
+    }
     OUTPUT:
         RETVAL
 
@@ -422,18 +436,24 @@ void
 print(info)
         BackupPC::XS::PoolRefCnt info;
     CODE:
+    {
         bpc_poolRefCountPrint(info);
+    }
 
 void
 DeltaFileInit(hostDir)
         char *hostDir;
     CODE:
+    {
         bpc_poolRefDeltaFileInitOld(hostDir);
+    }
 
 unsigned int
 DeltaFileFlush()
     CODE:
+    {
         RETVAL = bpc_poolRefDeltaFileFlushOld();
+    }
     OUTPUT:
         RETVAL
 
@@ -461,7 +481,9 @@ DeltaUpdate(compress, d, count)
 void
 DeltaPrint()
     CODE:
+    {
         bpc_poolRefDeltaPrintOld();
+    }
 
 MODULE = BackupPC::XS		PACKAGE = BackupPC::XS::DeltaRefCnt
 
@@ -471,6 +493,7 @@ new(targetDir)
     CODE:
     {
         RETVAL = calloc(1, sizeof(bpc_deltaCount_info));
+	if ( ! RETVAL ) croak( "BackupPC::XS::DeltaRefCnt::new: failed to calloc %lld bytes", (long long)sizeof(bpc_deltaCount_info) );
         bpc_poolRefDeltaFileInit((bpc_deltaCount_info*)RETVAL, targetDir);
     }
     OUTPUT:
@@ -485,11 +508,13 @@ DESTROY(info)
         free(info);
     }
 
-unsigned int
+uint32
 flush(info)
         BackupPC::XS::DeltaRefCnt info;
     CODE:
+    {
         RETVAL = bpc_poolRefDeltaFileFlush(info);
+    }
     OUTPUT:
         RETVAL
 
@@ -519,7 +544,9 @@ void
 print(info)
         BackupPC::XS::DeltaRefCnt info;
     CODE:
+    {
         bpc_poolRefDeltaPrint(info);
+    }
 
 MODULE = BackupPC::XS		PACKAGE = BackupPC::XS::PoolWrite
 
@@ -532,6 +559,7 @@ new(compressLevel, d = NULL)
         int ret = 0;
 
         RETVAL = calloc(1, sizeof(bpc_poolWrite_info));
+	if ( ! RETVAL ) croak( "BackupPC::XS::PoolWrite::new: failed to calloc %lld bytes", (long long)sizeof(bpc_poolWrite_info) );
         if ( d && SvPOK(d) ) {
             bpc_digest digest;
             char *str;
@@ -584,7 +612,7 @@ close(info)
         PUSHs(sv_2mortal(newSViv(errorCnt)));
     }
 
-int
+int64
 write(info, data)
         BackupPC::XS::PoolWrite info;
         SV *data;
@@ -609,7 +637,9 @@ addToPool(info, fileName, v3PoolFile)
         char *fileName;
         int v3PoolFile;
     CODE:
+    {
         bpc_poolWrite_addToPool(info, fileName, v3PoolFile);
+    }
 
 MODULE = BackupPC::XS		PACKAGE = BackupPC::XS::Attrib
 
@@ -619,6 +649,7 @@ new(compressLevel)
     CODE:
     {
         RETVAL = calloc(1, sizeof(bpc_attrib_dir));
+	if ( ! RETVAL ) croak( "BackupPC::XS::Attrib::new: failed to calloc %lld bytes", (long long)sizeof(bpc_attrib_dir) );
         bpc_attrib_dirInit(RETVAL, compressLevel);
     }
     OUTPUT:
@@ -722,7 +753,10 @@ iterate(dir, idx)
 char*
 errStr(void)
     CODE:
-        RETVAL = "TODO";
+    {
+      /* !!!!!!!!!!!!!!! */
+	RETVAL = "TODO";
+    }
     OUTPUT:
         RETVAL
 
@@ -730,7 +764,9 @@ int
 count(dir)
         BackupPC::XS::Attrib dir;
     CODE:
+    {
         RETVAL = bpc_attrib_fileCount(dir);
+    }
     OUTPUT:
         RETVAL
 
@@ -739,20 +775,24 @@ delete(dir, fileName)
         BackupPC::XS::Attrib dir;
         char *fileName;
     CODE:
+    {
         bpc_attrib_fileDeleteName(dir, fileName);
+    }
 
-int
+int64
 read(dir, dirPath, attribFileName = "attrib")
         BackupPC::XS::Attrib dir;
         char *dirPath;
         char *attribFileName;
     CODE:
+    {
         if ( !*dirPath ) dirPath = NULL;
         RETVAL = !bpc_attrib_dirRead(dir, dirPath, attribFileName, 0);
+    }
     OUTPUT:
         RETVAL
 
-int
+int64
 write(dir, dirPath, attribFileName, d = NULL, deltaInfo = NULL)
         BackupPC::XS::Attrib dir;
         char *dirPath;
@@ -760,6 +800,7 @@ write(dir, dirPath, attribFileName, d = NULL, deltaInfo = NULL)
         SV *d;
         BackupPC::XS::DeltaRefCnt deltaInfo;
     CODE:
+    {
         if ( !*dirPath ) dirPath = NULL;
         if ( d && SvPOK(d) ) {
             bpc_digest digest;
@@ -777,14 +818,17 @@ write(dir, dirPath, attribFileName, d = NULL, deltaInfo = NULL)
         } else {
             RETVAL = !bpc_attrib_dirWrite(deltaInfo, dir, dirPath, attribFileName, NULL);
         }
+    }
     OUTPUT:
         RETVAL
 
-char *
+char*
 fileType2Text(type)
         int type;
     CODE:
+    {
         RETVAL = bpc_attrib_fileType2Text(type);
+    }
     OUTPUT:
         RETVAL
 
@@ -793,7 +837,9 @@ backwardCompat(writeOldStyleAttribFile, keepOldAttribFiles)
         int writeOldStyleAttribFile;
         int keepOldAttribFiles;
     CODE:
+    {
         bpc_attrib_backwardCompat(writeOldStyleAttribFile, keepOldAttribFiles);
+    }
 
 MODULE = BackupPC::XS		PACKAGE = BackupPC::XS::AttribCache
 
@@ -806,6 +852,7 @@ new(host, backupNum, shareNameUM, compress)
     CODE:
     {
         RETVAL = calloc(1, sizeof(bpc_attribCache_info));
+	if ( ! RETVAL ) croak( "BackupPC::XS::AttribCache::new: failed to calloc %lld bytes", (long long)sizeof(bpc_attribCache_info) );
         bpc_attribCache_init(RETVAL, host, backupNum, shareNameUM, compress);
     }
     OUTPUT:
@@ -867,7 +914,9 @@ delete(ac, fileName)
         BackupPC::XS::AttribCache ac;
         char *fileName;
     CODE:
+    {
         RETVAL = bpc_attribCache_deleteFile(ac, fileName);
+    }
     OUTPUT:
         RETVAL
 
@@ -907,7 +956,9 @@ deleteInode(ac, inode)
         BackupPC::XS::AttribCache ac;
         unsigned long inode;
     CODE:
+    {
         RETVAL = bpc_attribCache_deleteInode(ac, inode);
+    }
     OUTPUT:
         RETVAL
 
@@ -916,7 +967,9 @@ count(ac, path)
         BackupPC::XS::AttribCache ac;
         char *path;
     CODE:
+    {
         RETVAL = bpc_attribCache_getDirEntryCnt(ac, path);
+    }
     OUTPUT:
         RETVAL
 
@@ -966,7 +1019,9 @@ flush(ac, all = 1, path = NULL)
         int all
         char *path;
     CODE:
+    {
         bpc_attribCache_flush(ac, all, path);
+    }
 
 SV*
 getFullMangledPath(ac, dirName)
@@ -1003,7 +1058,9 @@ int
 path_create(path)
         char *path;
     CODE:
+    {
         RETVAL = bpc_path_create(path);
+    }
     OUTPUT:
         RETVAL
 
@@ -1013,7 +1070,9 @@ path_remove(path, compress, deltaInfo = NULL)
         int compress;
         BackupPC::XS::DeltaRefCnt deltaInfo;
     CODE:
+    {
         RETVAL = bpc_path_remove(deltaInfo, path, compress);
+    }
     OUTPUT:
         RETVAL
 
@@ -1024,7 +1083,9 @@ refCountAll(path, compress, incr = 1, deltaInfo = NULL)
         int incr;
         BackupPC::XS::DeltaRefCnt deltaInfo;
     CODE:
+    {
         RETVAL = bpc_path_refCountAll(deltaInfo, path, compress, incr);
+    }
     OUTPUT:
         RETVAL
 
@@ -1052,7 +1113,9 @@ lockRangeFd(fd, offset, len, block)
         unsigned int len;
         int block;
     CODE:
+    {
         RETVAL = bpc_lockRangeFd(fd, offset, len, block);
+    }
     OUTPUT:
         RETVAL
 
@@ -1062,7 +1125,9 @@ unlockRangeFd(fd, offset, len)
         unsigned int offset;
         unsigned int len;
     CODE:
+    {
         RETVAL = bpc_unlockRangeFd(fd, offset, len);
+    }
     OUTPUT:
         RETVAL
 
@@ -1073,7 +1138,9 @@ lockRangeFile(lockFile, offset, len, block)
         unsigned int len;
         int block;
     CODE:
+    {
         RETVAL = bpc_lockRangeFile(lockFile, offset, len, block);
+    }
     OUTPUT:
         RETVAL
 
@@ -1081,7 +1148,9 @@ void
 unlockRangeFile(lockFd)
         int lockFd;
     CODE:
+    {
         bpc_unlockRangeFile(lockFd);
+    }
         
 MODULE = BackupPC::XS		PACKAGE = BackupPC::XS::Lib
 
@@ -1092,7 +1161,9 @@ ConfInit(topDir, hardLinkMax, poolV3Enabled, logLevel = 0)
         int poolV3Enabled;
         int logLevel;
     CODE:
+    {
         bpc_lib_conf_init(topDir, hardLinkMax, poolV3Enabled, logLevel);
+    }
 
 SV*
 logMsgGet()
@@ -1134,4 +1205,6 @@ void
 logLevelSet(logLevel)
         int logLevel;
     CODE:
+    {
         bpc_lib_setLogLevel(logLevel);
+    }
